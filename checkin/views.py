@@ -17,15 +17,13 @@ from .models import CheckIn
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def generate_qr(request, ngo_id):
+    
+    # ← Point to GATEWAY, not this service
+    # Gateway handles session/cookie auth, not JWT
+    gateway_url = f"http://localhost:8000/checkin/employee/{ngo_id}/"
 
-    # Build the checkin URL (points back to this service)
-    checkin_url = request.build_absolute_uri(
-        f'/api/v1/checkin/employee-checkin/{ngo_id}/'
-    )
-
-    # Generate QR — same settings as your monolith
     qr = qrcode.QRCode(box_size=10, border=2)
-    qr.add_data(checkin_url)
+    qr.add_data(gateway_url)
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
@@ -35,10 +33,9 @@ def generate_qr(request, ngo_id):
 
     return Response({
         'ngo_id': ngo_id,
-        'checkin_url': checkin_url,
-        'qr_code_base64': qr_base64,      # frontend renders this as <img src="data:image/png;base64,...">
+        'checkin_url': gateway_url,
+        'qr_code_base64': qr_base64,
     })
-
 
 # ─────────────────────────────────────────────────────
 # POST /api/v1/checkin/employee-checkin/<ngo_id>/
