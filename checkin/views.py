@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import CheckIn
-from .serializers import CheckInSerializer
+from .serializers import CheckInSerializer, ScanTokenSerializer
 
 def generate_token(employee_id, ngo_id):
     payload = {
@@ -74,13 +74,17 @@ def generate_qr(request, ngo_id):
 # Called when QR is scanned — verifies token & records checkin
 # ─────────────────────────────────────────────────────
 @api_view(['POST'])
-@permission_classes([AllowAny])   # no JWT needed — token IS the auth
+@permission_classes([AllowAny])
 def scan_checkin(request):
-    token = request.data.get('token')
 
-    if not token:
-        return Response({'error': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    # ← Replace manual token check with serializer validation
+    serializer = ScanTokenSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    token = serializer.validated_data['token']  # ← get token from serializer
+
+    # Rest stays exactly the same ↓
     payload, error = decode_token(token)
     if error:
         return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
@@ -95,7 +99,7 @@ def scan_checkin(request):
 
     return Response({
         'message': 'Check-in successful!',
-        'checkin': CheckInSerializer(checkin).data        # ← serializer
+        'checkin': CheckInSerializer(checkin).data
     }, status=status.HTTP_201_CREATED)
 
 
