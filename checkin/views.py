@@ -13,26 +13,6 @@ from rest_framework import status
 from .models import CheckIn
 from .serializers import CheckInSerializer, ScanRequestSerializer
 
-def generate_token(employee_id, ngo_id):
-    payload = {
-        'employee_id': employee_id,
-        'ngo_id': ngo_id,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-        'iat': datetime.datetime.utcnow(),
-    }
-    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-    return token
-
-
-def decode_token(token):
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-        return payload, None
-    except jwt.ExpiredSignatureError:
-        return None, 'QR code has expired.'
-    except jwt.InvalidTokenError:
-        return None, 'Invalid QR code.'
-
 
 # ─────────────────────────────────────────────────────
 # GET /api/v1/checkins/generate-qr/<ngo_id>/
@@ -43,7 +23,7 @@ def decode_token(token):
 def generate_qr(request, ngo_id):
 
     # QR encodes the scan URL with ngo_id only — no employee_id
-    scan_url = f"http://localhost:8000/checkin/scan/?ngo_id={ngo_id}"
+    scan_url = f"{settings.GATEWAY_URL}/checkin/scan/?ngo_id={ngo_id}"
 
     qr = qrcode.QRCode(box_size=10, border=2)
     qr.add_data(scan_url)
@@ -65,21 +45,15 @@ def generate_qr(request, ngo_id):
 # Called when QR is scanned — verifies token & records checkin
 # ─────────────────────────────────────────────────────
 @api_view(['POST'])
-@permission_classes([IsEmployee])   # ← employee must be logged in
+@permission_classes([IsEmployee])
 def scan_checkin(request):
 
     serializer = ScanRequestSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    ngo_id = request.data.get('ngo_id')
-    employee_id = request.user.get('user_id')   # ← from their JWT
-
-    if not ngo_id:
-        return Response(
-            {'error': 'ngo_id is required.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    ngo_id = serializer.validated_data['ngo_id']      # ← use validated data ✅
+    employee_id = request.user.get('user_id')
 
     if CheckIn.objects.filter(employee_id=employee_id, ngo_id=ngo_id).exists():
         return Response(

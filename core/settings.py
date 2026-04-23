@@ -101,3 +101,12 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# ── Service URLs ───────────────────────────
+NGO_SERVICE_URL = os.environ.get(
+    'NGO_SERVICE_URL', 'http://127.0.0.1:8002'          # ← ngo service
+)
+NOTIFICATION_SERVICE_URL = os.environ.get(
+    'NOTIFICATION_SERVICE_URL', 'http://127.0.0.1:8004'  # ← notification service
+)
+GATEWAY_URL = os.environ.get('GATEWAY_URL', 'http://localhost:8000')
