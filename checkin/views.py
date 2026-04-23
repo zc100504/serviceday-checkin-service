@@ -11,14 +11,13 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import CheckIn
-
+from .serializers import CheckInSerializer
 
 def generate_token(employee_id, ngo_id):
-    """Create a unique signed token per employee per activity"""
     payload = {
         'employee_id': employee_id,
         'ngo_id': ngo_id,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),  # expires in 24hrs
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
         'iat': datetime.datetime.utcnow(),
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
@@ -26,7 +25,6 @@ def generate_token(employee_id, ngo_id):
 
 
 def decode_token(token):
-    """Verify and decode the token"""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
         return payload, None
@@ -45,20 +43,15 @@ def decode_token(token):
 def generate_qr(request, ngo_id):
     employee_id = request.user.id
 
-    # Already checked in? No need for QR
     if CheckIn.objects.filter(employee_id=employee_id, ngo_id=ngo_id).exists():
         return Response(
             {'error': 'You have already checked in for this activity.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Generate unique token for THIS employee + THIS activity
     token = generate_token(employee_id, ngo_id)
-
-    # QR encodes the scan URL with unique token
     scan_url = f"http://localhost:8000/checkin/scan/?token={token}"
 
-    # Build QR image
     qr = qrcode.QRCode(box_size=10, border=2)
     qr.add_data(scan_url)
     qr.make(fit=True)
@@ -73,9 +66,8 @@ def generate_qr(request, ngo_id):
         'ngo_id': ngo_id,
         'token': token,
         'scan_url': scan_url,
-        'qr_code_base64': qr_base64,   # frontend renders this
+        'qr_code_base64': qr_base64,
     })
-
 
 # ─────────────────────────────────────────────────────
 # POST /api/v1/checkins/scan/
@@ -87,40 +79,23 @@ def scan_checkin(request):
     token = request.data.get('token')
 
     if not token:
-        return Response(
-            {'error': 'Token is required.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({'error': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Verify token
     payload, error = decode_token(token)
     if error:
-        return Response(
-            {'error': error},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
 
     employee_id = payload['employee_id']
     ngo_id = payload['ngo_id']
 
-    # Already checked in?
     if CheckIn.objects.filter(employee_id=employee_id, ngo_id=ngo_id).exists():
-        return Response(
-            {'error': 'Already checked in.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({'error': 'Already checked in.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Record checkin
-    checkin = CheckIn.objects.create(
-        employee_id=employee_id,
-        ngo_id=ngo_id,
-    )
+    checkin = CheckIn.objects.create(employee_id=employee_id, ngo_id=ngo_id)
 
     return Response({
         'message': 'Check-in successful!',
-        'employee_id': employee_id,
-        'ngo_id': ngo_id,
-        'checked_in_at': checkin.checked_in_at,
+        'checkin': CheckInSerializer(checkin).data        # ← serializer
     }, status=status.HTTP_201_CREATED)
 
 
@@ -132,17 +107,10 @@ def scan_checkin(request):
 @permission_classes([IsAdminUser])
 def live_monitor(request, ngo_id):
     records = CheckIn.objects.filter(ngo_id=ngo_id).order_by('-checked_in_at')
-
-    checkins = [
-        {
-            'employee_id': r.employee_id,
-            'checked_in_at': r.checked_in_at,
-        }
-        for r in records
-    ]
+    serializer = CheckInSerializer(records, many=True)    # ← serializer
 
     return Response({
         'ngo_id': ngo_id,
         'checked_in_count': records.count(),
-        'checkins': checkins,
+        'checkins': serializer.data
     })
