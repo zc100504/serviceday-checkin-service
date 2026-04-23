@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import CheckIn
-from .serializers import CheckInSerializer, ScanTokenSerializer
+from .serializers import CheckInSerializer, ScanRequestSerializer
 
 def generate_token(employee_id, ngo_id):
     payload = {
@@ -68,7 +68,7 @@ def generate_qr(request, ngo_id):
 @permission_classes([IsEmployee])   # ← employee must be logged in
 def scan_checkin(request):
 
-    serializer = ScanTokenSerializer(data=request.data)
+    serializer = ScanRequestSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
