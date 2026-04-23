@@ -14,11 +14,13 @@ class CheckInSerializer(serializers.ModelSerializer):
         return value
 
 
-class ScanTokenSerializer(serializers.Serializer):
+class ScanRequestSerializer(serializers.Serializer):
     """Validates incoming scan requests"""
-    token = serializers.CharField()
+    ngo_id = serializers.IntegerField()
 
-    def validate_token(self, value):
-        if not value or len(value.strip()) == 0:
-            raise serializers.ValidationError("Token cannot be empty.")
-        return value.strip()
+    def validate_ngo_id(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Activity ID must be a positive number."
+            )
+        return value
