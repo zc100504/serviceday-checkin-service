@@ -4,7 +4,8 @@ from rest_framework.test import APIClient
 from rest_framework import status
 import base64
 from .models import CheckIn
-
+from .serializers import CheckInSerializer, ScanRequestSerializer
+from .models import CheckIn
 
 # ─────────────────────────────────────────────
 # Topic 13.1 — Unit Tests: CheckIn Model
@@ -60,6 +61,51 @@ class CheckInModelTest(TestCase):
         ).order_by('-checked_in_at')
         self.assertEqual(records.count(), 2)
 
+
+
+
+class CheckInSerializerTest(TestCase):
+    """
+    Topic 13.1 — Unit tests for CheckIn serializers.
+    """
+
+    def test_serializer_contains_expected_fields(self):
+        """Serializer returns all required fields."""
+        checkin = CheckIn.objects.create(
+            employee_id=1,
+            ngo_id=1
+        )
+        serializer = CheckInSerializer(checkin)
+        fields = serializer.data.keys()
+        for field in ['id', 'employee_id', 'ngo_id', 'checked_in_at']:
+            self.assertIn(field, fields)
+
+    def test_serializer_data_matches_model(self):
+        """Serializer data matches model fields exactly."""
+        checkin = CheckIn.objects.create(
+            employee_id=2,
+            ngo_id=3
+        )
+        serializer = CheckInSerializer(checkin)
+        self.assertEqual(serializer.data['employee_id'], 2)
+        self.assertEqual(serializer.data['ngo_id'], 3)
+        self.assertIsNotNone(serializer.data['checked_in_at'])
+
+    def test_scan_request_serializer_valid(self):
+        """ScanRequestSerializer validates positive ngo_id."""
+        serializer = ScanRequestSerializer(data={'ngo_id': 1})
+        self.assertTrue(serializer.is_valid())
+
+    def test_scan_request_serializer_invalid_negative(self):
+        """ScanRequestSerializer rejects negative ngo_id."""
+        serializer = ScanRequestSerializer(data={'ngo_id': -1})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('ngo_id', serializer.errors)
+
+    def test_scan_request_serializer_missing_field(self):
+        """ScanRequestSerializer rejects empty data."""
+        serializer = ScanRequestSerializer(data={})
+        self.assertFalse(serializer.is_valid())
 
 # ─────────────────────────────────────────────
 # Topic 13.2 + 13.3 — API + Integration Tests
