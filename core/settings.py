@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders', 
     'checkin',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -70,6 +71,16 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Check-In Service API',
+    'DESCRIPTION': 'API documentation for the check-in service — generate, scan and verify.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,  # hides the raw schema from the doc UIs
+    'SCHEMA_PATH_PREFIX': '/api/v1',
+    'COMPONENT_SPLIT_REQUEST': True,  # separates request vs response schemas
 }
 
 LANGUAGE_CODE = 'en-us'
